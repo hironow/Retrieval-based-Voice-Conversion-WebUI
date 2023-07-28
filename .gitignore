@@ -5,3 +5,6 @@ __pycache__
 hubert_base.pt
 /logs
 .venv
+
+private/
+.env
