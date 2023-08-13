@@ -315,6 +315,8 @@ class SineGen(torch.nn.Module):
         # generate uv signal
         uv = torch.ones_like(f0)
         uv = uv * (f0 > self.voiced_threshold)
+        if uv.device.type == "privateuseone":  # for DirectML
+            uv = uv.float()
         return uv
 
     def forward(self, f0, upp):
@@ -415,7 +417,7 @@ class SourceModuleHnNSF(torch.nn.Module):
         sine_wavs, uv, _ = self.l_sin_gen(x, upp)
         if self.is_half:
             sine_wavs = sine_wavs.half()
-        sine_merge = self.l_tanh(self.l_linear(sine_wavs))
+        sine_merge = self.l_tanh(self.l_linear(sine_wavs.to(x)))
         return sine_merge, None, None  # noise, uv
 
 
