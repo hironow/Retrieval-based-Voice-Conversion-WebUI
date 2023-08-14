@@ -8,3 +8,6 @@ hubert_base.pt
 
 private/
 .env
+
+inputs/
+outputs/
