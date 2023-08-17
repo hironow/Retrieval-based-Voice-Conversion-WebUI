@@ -172,13 +172,13 @@ class Config:
             try:
                 os.rename(
                     "runtime\Lib\site-packages\onnxruntime",
-                    "runtime\Lib\site-packages\onnxruntime-cuda",
+                    "runtime\Lib\site-packages\onnxruntime-dml",
                 )
             except:
                 pass
             try:
                 os.rename(
-                    "runtime\Lib\site-packages\onnxruntime-dml",
+                    "runtime\Lib\site-packages\onnxruntime-cuda",
                     "runtime\Lib\site-packages\onnxruntime",
                 )
             except:
