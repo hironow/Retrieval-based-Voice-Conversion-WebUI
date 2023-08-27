@@ -22,7 +22,7 @@ import faiss
 import ffmpeg
 import gradio as gr
 import soundfile as sf
-from config import Config
+from config import defaultconfig as config
 import fairseq
 from i18n import I18nAuto
 from lib.infer_pack.models import (
@@ -35,7 +35,7 @@ from lib.infer_pack.models_onnx import SynthesizerTrnMsNSFsidM
 from infer_uvr5 import _audio_pre_, _audio_pre_new
 from lib.audio import load_audio
 from lib.train.process_ckpt import change_info, extract_small_model, merge, show_info
-from vc_infer_pipeline import VC
+from lib.train.vc_infer_pipeline import VC
 from sklearn.cluster import MiniBatchKMeans
 
 logging.getLogger("numba").setLevel(logging.WARNING)
@@ -53,7 +53,6 @@ warnings.filterwarnings("ignore")
 torch.manual_seed(114514)
 
 
-config = Config()
 if config.dml == True:
 
     def forward_dml(ctx, x, scale):
@@ -229,8 +228,6 @@ def vc_single(
             protect,
             f0_file=f0_file,
         )
-        if tgt_sr != resample_sr >= 16000:
-            tgt_sr = resample_sr
         index_info = (
             "Using index:%s." % file_index
             if os.path.exists(file_index)
@@ -241,7 +238,10 @@ def vc_single(
             times[0],
             times[1],
             times[2],
-        ), (tgt_sr, audio_opt)
+        ), (
+            resample_sr if resample_sr >= 16000 and tgt_sr != resample_sr else tgt_sr,
+            audio_opt,
+        )
     except:
         info = traceback.format_exc()
         print(info)
@@ -571,13 +571,17 @@ def if_done_multi(done, ps):
     done[0] = True
 
 
+def get_quoted_python_cmd():
+    return f'"{config.python_cmd}"'
+
+
 def preprocess_dataset(trainset_dir, exp_dir, sr, n_p):
     sr = sr_dict[sr]
     os.makedirs("%s/logs/%s" % (now_dir, exp_dir), exist_ok=True)
     f = open("%s/logs/%s/preprocess.log" % (now_dir, exp_dir), "w")
     f.close()
     cmd = (
-        config.python_cmd
+        get_quoted_python_cmd()
         + ' trainset_preprocess_pipeline_print.py "%s" %s %s "%s/logs/%s" '
         % (trainset_dir, sr, n_p, now_dir, exp_dir)
         + str(config.noparallel)
@@ -613,11 +617,15 @@ def extract_f0_feature(gpus, n_p, f0method, if_f0, exp_dir, version19, gpus_rmvp
     f.close()
     if if_f0:
         if f0method != "rmvpe_gpu":
-            cmd = config.python_cmd + ' extract_f0_print.py "%s/logs/%s" %s %s' % (
-                now_dir,
-                exp_dir,
-                n_p,
-                f0method,
+            cmd = (
+                get_quoted_python_cmd()
+                + ' extract_f0_print.py "%s/logs/%s" %s %s'
+                % (
+                    now_dir,
+                    exp_dir,
+                    n_p,
+                    f0method,
+                )
             )
             print(cmd)
             p = Popen(
@@ -639,7 +647,7 @@ def extract_f0_feature(gpus, n_p, f0method, if_f0, exp_dir, version19, gpus_rmvp
                 ps = []
                 for idx, n_g in enumerate(gpus_rmvpe):
                     cmd = (
-                        config.python_cmd
+                        get_quoted_python_cmd()
                         + ' extract_f0_rmvpe.py %s %s %s "%s/logs/%s" %s '
                         % (leng, idx, n_g, now_dir, exp_dir, config.is_half)
                     )
@@ -692,7 +700,7 @@ def extract_f0_feature(gpus, n_p, f0method, if_f0, exp_dir, version19, gpus_rmvp
     ps = []
     for idx, n_g in enumerate(gpus):
         cmd = (
-            config.python_cmd
+            get_quoted_python_cmd()
             + ' extract_feature_print.py %s %s %s %s "%s/logs/%s" %s'
             % (
                 config.device,
@@ -927,24 +935,20 @@ def click_train(
     if pretrained_D15 == "":
         print("no pretrained Discriminator")
     if gpus16:
-        cmd = (
-            config.python_cmd
-            + ' train_nsf_sim_cache_sid_load_pretrain.py -e "%s" -sr %s -f0 %s -bs %s -g %s -te %s -se %s %s %s -l %s -c %s -sw %s -v %s'
-            % (
-                exp_dir1,
-                sr2,
-                1 if if_f0_3 else 0,
-                batch_size12,
-                gpus16,
-                total_epoch11,
-                save_epoch10,
-                "-pg %s" % pretrained_G14 if pretrained_G14 != "" else "",
-                "-pd %s" % pretrained_D15 if pretrained_D15 != "" else "",
-                1 if if_save_latest13 == i18n("是") else 0,
-                1 if if_cache_gpu17 == i18n("是") else 0,
-                1 if if_save_every_weights18 == i18n("是") else 0,
-                version19,
-            )
+        cmd = get_quoted_python_cmd() + ' train_nsf_sim_cache_sid_load_pretrain.py -e "%s" -sr %s -f0 %s -bs %s -g %s -te %s -se %s %s %s -l %s -c %s -sw %s -v %s' % (
+            exp_dir1,
+            sr2,
+            1 if if_f0_3 else 0,
+            batch_size12,
+            gpus16,
+            total_epoch11,
+            save_epoch10,
+            "-pg %s" % pretrained_G14 if pretrained_G14 != "" else "",
+            "-pd %s" % pretrained_D15 if pretrained_D15 != "" else "",
+            1 if if_save_latest13 == i18n("是") else 0,
+            1 if if_cache_gpu17 == i18n("是") else 0,
+            1 if if_save_every_weights18 == i18n("是") else 0,
+            version19,
         )
     else:
         cmd = (
@@ -1093,7 +1097,7 @@ def train1key(
     #########step1:处理数据
     open(preprocess_log_path, "w").close()
     cmd = (
-        config.python_cmd
+        get_quoted_python_cmd()
         + ' trainset_preprocess_pipeline_print.py "%s" %s %s "%s" '
         % (trainset_dir4, sr_dict[sr2], np7, model_log_dir)
         + str(config.noparallel)
@@ -1124,7 +1128,7 @@ def train1key(
                 ps = []
                 for idx, n_g in enumerate(gpus_rmvpe):
                     cmd = (
-                        config.python_cmd
+                        get_quoted_python_cmd()
                         + ' extract_f0_rmvpe.py %s %s %s "%s" %s '
                         % (
                             leng,
@@ -1160,13 +1164,17 @@ def train1key(
     leng = len(gpus)
     ps = []
     for idx, n_g in enumerate(gpus):
-        cmd = config.python_cmd + ' extract_feature_print.py %s %s %s %s "%s" %s' % (
-            config.device,
-            leng,
-            idx,
-            n_g,
-            model_log_dir,
-            version19,
+        cmd = (
+            get_quoted_python_cmd()
+            + ' extract_feature_print.py %s %s %s %s "%s" %s'
+            % (
+                config.device,
+                leng,
+                idx,
+                n_g,
+                model_log_dir,
+                version19,
+            )
         )
         yield get_info_str(cmd)
         p = Popen(
@@ -1239,24 +1247,20 @@ def train1key(
         f.write("\n".join(opt))
     yield get_info_str("write filelist done")
     if gpus16:
-        cmd = (
-            config.python_cmd
-            + ' train_nsf_sim_cache_sid_load_pretrain.py -e "%s" -sr %s -f0 %s -bs %s -g %s -te %s -se %s %s %s -l %s -c %s -sw %s -v %s'
-            % (
-                exp_dir1,
-                sr2,
-                1 if if_f0_3 else 0,
-                batch_size12,
-                gpus16,
-                total_epoch11,
-                save_epoch10,
-                "-pg %s" % pretrained_G14 if pretrained_G14 != "" else "",
-                "-pd %s" % pretrained_D15 if pretrained_D15 != "" else "",
-                1 if if_save_latest13 == i18n("是") else 0,
-                1 if if_cache_gpu17 == i18n("是") else 0,
-                1 if if_save_every_weights18 == i18n("是") else 0,
-                version19,
-            )
+        cmd = get_quoted_python_cmd() + ' train_nsf_sim_cache_sid_load_pretrain.py -e "%s" -sr %s -f0 %s -bs %s -g %s -te %s -se %s %s %s -l %s -c %s -sw %s -v %s' % (
+            exp_dir1,
+            sr2,
+            1 if if_f0_3 else 0,
+            batch_size12,
+            gpus16,
+            total_epoch11,
+            save_epoch10,
+            "-pg %s" % pretrained_G14 if pretrained_G14 != "" else "",
+            "-pd %s" % pretrained_D15 if pretrained_D15 != "" else "",
+            1 if if_save_latest13 == i18n("是") else 0,
+            1 if if_cache_gpu17 == i18n("是") else 0,
+            1 if if_save_every_weights18 == i18n("是") else 0,
+            version19,
         )
     else:
         cmd = (

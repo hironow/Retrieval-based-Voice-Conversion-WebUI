@@ -93,6 +93,7 @@ class Config:
             if (
                 ("16" in self.gpu_name and "V100" not in self.gpu_name.upper())
                 or "P40" in self.gpu_name.upper()
+                or "P10" in self.gpu_name.upper()
                 or "1060" in self.gpu_name
                 or "1070" in self.gpu_name
                 or "1080" in self.gpu_name
@@ -148,39 +149,55 @@ class Config:
             x_max = 32
         if self.dml:
             print("use DirectML instead")
-            try:
-                os.rename(
-                    "runtime\Lib\site-packages\onnxruntime",
-                    "runtime\Lib\site-packages\onnxruntime-cuda",
+            if (
+                os.path.exists(
+                    "runtime\Lib\site-packages\onnxruntime\capi\DirectML.dll"
                 )
-            except:
-                pass
-            try:
-                os.rename(
-                    "runtime\Lib\site-packages\onnxruntime-dml",
-                    "runtime\Lib\site-packages\onnxruntime",
-                )
-            except:
-                pass
-            import torch_directml
+                == False
+            ):
+                try:
+                    os.rename(
+                        "runtime\Lib\site-packages\onnxruntime",
+                        "runtime\Lib\site-packages\onnxruntime-cuda",
+                    )
+                except:
+                    pass
+                try:
+                    os.rename(
+                        "runtime\Lib\site-packages\onnxruntime-dml",
+                        "runtime\Lib\site-packages\onnxruntime",
+                    )
+                except:
+                    pass
+            if self.device != "cpu":
+                import torch_directml
 
-            self.device = torch_directml.device(torch_directml.default_device())
-            self.is_half = False
+                self.device = torch_directml.device(torch_directml.default_device())
+                self.is_half = False
         else:
             if self.instead:
                 print(f"use {self.instead} instead")
-            try:
-                os.rename(
-                    "runtime\Lib\site-packages\onnxruntime",
-                    "runtime\Lib\site-packages\onnxruntime-cuda",
+            if (
+                os.path.exists(
+                    "runtime\Lib\site-packages\onnxruntime\capi\onnxruntime_providers_cuda.dll"
                 )
-            except:
-                pass
-            try:
-                os.rename(
-                    "runtime\Lib\site-packages\onnxruntime-dml",
-                    "runtime\Lib\site-packages\onnxruntime",
-                )
-            except:
-                pass
+                == False
+            ):
+                try:
+                    os.rename(
+                        "runtime\Lib\site-packages\onnxruntime",
+                        "runtime\Lib\site-packages\onnxruntime-dml",
+                    )
+                except:
+                    pass
+                try:
+                    os.rename(
+                        "runtime\Lib\site-packages\onnxruntime-cuda",
+                        "runtime\Lib\site-packages\onnxruntime",
+                    )
+                except:
+                    pass
         return x_pad, x_query, x_center, x_max
+
+
+defaultconfig = Config()
