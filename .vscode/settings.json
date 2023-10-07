@@ -6,6 +6,7 @@
         "**/assets/rmvpe/": true,
         "**/assets/uvr5_weights/": true,
         "**/TEMP": true,
+        "**/opt": true,
         "**/logs/mute/": true,
         "**/__pycache__": true
     },
