@@ -1,11 +1,12 @@
 {
     "files.exclude": {
-        "**/*.pt": true,
-        "**/*.pth": true,
-        "**/hubert_base.pt": true,
         "**/pretrained": true,
+        "**/pretrained_v2": true,
+        "**/assets/hubert/": true,
+        "**/assets/rmvpe/": true,
+        "**/assets/uvr5_weights/": true,
         "**/TEMP": true,
-        "**/logs": true,
+        "**/logs/mute/": true,
         "**/__pycache__": true
     },
     "cSpell.words": [
