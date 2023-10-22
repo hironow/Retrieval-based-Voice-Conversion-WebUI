@@ -6,6 +6,8 @@ import numpy as np
 import av
 from io import BytesIO
 
+from gradio import File
+
 
 def wav2(i, o, format):
     inp = av.open(i, "rb")
@@ -49,25 +51,41 @@ def audio2(i, o, format, sr):
     inp.close()
 
 
-def load_audio(file, sr):
-    file = (
-        file.strip(" ").strip('"').strip("\n").strip('"').strip(" ")
-    )  # 防止小白拷路径头尾带了空格和"和回车
-    if os.path.exists(file) == False:
-        raise RuntimeError(
-            "You input a wrong audio path that does not exists, please fix it!"
-        )
+def load_audio(file_or_path, sr):
     try:
-        with open(file, "rb") as f:
-            with BytesIO() as out:
-                audio2(f, out, "f32le", sr)
-                return np.frombuffer(out.getvalue(), np.float32).flatten()
+        if isinstance(file_or_path, File):
+            # as Gradio File object
+            with BytesIO(file_or_path.read()) as f:
+                with BytesIO() as out:
+                    audio2(f, out, "f32le", sr)
+                    return np.frombuffer(out.getvalue(), np.float32).flatten()
+
+        elif isinstance(file_or_path, str):
+            # as File path
+            file_or_path = (
+                file_or_path.strip(" ").strip('"').strip("\n").strip('"').strip(" ")
+            )
+
+            if not os.path.exists(file_or_path):
+                raise RuntimeError(
+                    "You input a wrong audio path that does not exist, please fix it!"
+                )
+
+            with open(file_or_path, "rb") as f:
+                with BytesIO() as out:
+                    audio2(f, out, "f32le", sr)
+                    return np.frombuffer(out.getvalue(), np.float32).flatten()
+
+        else:
+            raise RuntimeError(
+                "Invalid input type. Please provide either a Gradio File object or a file path."
+            )
 
     except AttributeError:
-        audio = file[1] / 32768.0
+        audio = file_or_path[1] / 32768.0
         if len(audio.shape) == 2:
             audio = np.mean(audio, -1)
-        return librosa.resample(audio, orig_sr=file[0], target_sr=16000)
+        return librosa.resample(audio, orig_sr=file_or_path[0], target_sr=sr)
 
     except:
         raise RuntimeError(traceback.format_exc())
