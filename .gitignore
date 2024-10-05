@@ -25,9 +25,11 @@ rmvpe.pt
 
 private/
 .env
-
+.mypy_cache/
+.pytest_cache/
 inputs/
 outputs/
+.vscode/
 
 /runtime
 /assets/weights/*
